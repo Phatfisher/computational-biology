@@ -1,0 +1,3 @@
+Rohl, Strauss, Misura, Baker. "Protein Structure Prediction Using Rosetta" (2004)
+
+Huang, Boyken, Baker. "The coming of age of de novo protein design" (2016)

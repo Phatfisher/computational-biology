@@ -1,0 +1,141 @@
+\documentclass[12pt]{book}
+
+\usepackage{tablefootnote}[2011/11/26]% v1.0e
+
+\makeatletter
+\newcommand{\spewnotes}{%
+\tfn@tablefootnoteprintout%
+\global\let\tfn@tablefootnoteprintout\relax%
+\gdef\tfn@fnt{0}%
+}
+\makeatother
+
+\usepackage{hyperref}
+
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{import}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\usepackage{mathtools}
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+\DeclarePairedDelimiter{\floor}{\lfloor}{\rfloor}
+\newcommand{\pmf}{\DOTSB\mbox{pmf}}
+
+\usepackage[titles]{tocloft}
+\makeatletter
+\newcommand*{\tocwithouttitle}{\@starttoc{toc}}
+\makeatother
+
+\usepackage{sectsty}
+\partfont{\Large\uppercase}
+
+\usepackage{listings}
+\usepackage{fontawesome}
+% \defcaptionname{english}{\lstlistingname}{Algorithm}
+
+\usepackage{color}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=Java,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true
+  tabsize=3
+}
+
+\usepackage{setspace}
+
+\sloppy
+
+\begin{document}
+
+\noindent Felsenstein's pruning algorithm for computing the likelihood of a phylogeny\newline
+\noindent Oliver Serang
+
+\section{Notation}
+
+\begin{tabular}{r|l}
+  $T$ & The phylogenetic tree (including both its topology and its branch lengths)\\
+  $D = (D_1, D_2, \ldots)$ & All known (\emph{i.e.}, observed) nucleotide sequences\\
+  $X = (X_1, X_2, \ldots)$ & All unknown ancestor nucleotide sequences in the tree\\
+  $D_1$ & A known (\emph{i.e.}, observed) nucleotide sequence\\
+  $X_1$ & An unknown ancestor nucleotide sequence\\
+  $X_{1,2}$ & The second base pair of an unknown ancestor nucleotide sequence\\
+  $A \rightarrow B$ & Sequence $A$ becomes sequence $B$\\
+  $c(X_1)$ & The set of children of $X_1$ in the tree\\
+  $d(X_1)$ & The set of descendents of $X_1$ in the tree\\
+  $\downarrow X_1 = d(X_1) \bigcap D$ & All observed descendents of $X_1$ in the tree
+\end{tabular}
+
+\section{Direct likelihood computation}
+
+Denote the root as $X_1$.
+
+\begin{eqnarray*}
+  \Pr(D | T) &=& \sum_x \Pr(D, X=x | T)\\
+  &=& \sum_{x_1} \Pr(\downarrow X_1, X_1=x_1 | T)\\
+  &=& \sum_{x_1} \Pr(X_1=x_1) \cdot \Pr(\downarrow X_1 | X_1=x_1, T)
+\end{eqnarray*}
+The runtime of this naive approach will have cost $\in \Omega({4^k}^n)$
+where $k$ is the number of base pairs and $n$ is the number of
+species.
+
+\[ \Pr(\downarrow X_i | X_i=x_i, T) = \prod_{Y \in c(X_i)\mbox{ in }T} \sum_y \Pr(x_i \rightarrow y | T) \cdot \Pr(\downarrow Y | Y=y, T) \]
+
+Thus, $\Pr(\downarrow X_i | X_i=x_i, T)$ can be decomposed into
+$\Pr(\downarrow Y | Y=y, T)$ for each $Y \in c(X_i)$.
+
+Each term $\sum_y \Pr(x_i \rightarrow y | T) \cdot \Pr(\downarrow Y |
+Y=y, T)$ can be cached: $\forall x_i,~ g(x_i) = \sum_y f(x_i,
+y)$. These results can be passed up the tree as $g(x_i)$ in a memoized
+manner.
+
+The runtime of this ``pruned'' approach will have cost $\in O(4^k \cdot n)$
+where $k$ is the number of base pairs and $n$ is the number of
+species.
+
+
+\begin{figure*}
+  \centering
+  \includegraphics[width=5in]{phylogeny.pdf}
+  \caption{{Example phylogenetic tree on 6 species with 5 unknown ancestor species.} 
+  \label{fig:phylogeny}}
+\end{figure*}
+
+\section{Using an independent nucleotide model}
+
+\[ \Pr(X_1=x_1) = \prod_j \Pr(X_{1,j} = x_{1,j} \]
+\[ \Pr(A \rightarrow B | T) = \prod_j \Pr(A_j \rightarrow B_j | T) \]
+
+Given the tree\footnote{This is important: a mutation at one base can
+  imply a greater evolutionary divergence, which can imply a greater
+  mutation probability at another base; however, once we know $T$,
+  what happens at one base will only rarely influence what happens at
+  another base.}, each base pair functions independently; thus, we
+could essentially draw a separate, independent copy of our phylogeny
+for each base pair. Then, we can compute $\Pr(D | T) = \Pr(D_1, D_2,
+\ldots | T) = \prod_j \Pr(D_{1,j}, D_{2,j}, \ldots |T)$.
+
+By applying the pruning method above to each tree, we achieve an algorithm that runs $\in O(k \cdot n)$. This can be run on very large data sets.
+
+\end{document}
+
+

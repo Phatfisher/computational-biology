@@ -1,0 +1,6 @@
+H	1.00794		Hydrogen 	
+C     	12.0107		Carbon 	        
+N      	14.00674	Nitrogen 	
+O      	15.9994		Oxygen 	        
+P      	30.973761998	Phosphorus 	
+S      	32.065		Sulfur 	        

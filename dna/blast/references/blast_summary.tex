@@ -1,0 +1,176 @@
+\documentclass[12pt]{book}
+
+\usepackage{tablefootnote}[2011/11/26]% v1.0e
+
+\makeatletter
+\newcommand{\spewnotes}{%
+\tfn@tablefootnoteprintout%
+\global\let\tfn@tablefootnoteprintout\relax%
+\gdef\tfn@fnt{0}%
+}
+\makeatother
+
+\usepackage{hyperref}
+
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{import}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\usepackage{mathtools}
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+\DeclarePairedDelimiter{\floor}{\lfloor}{\rfloor}
+\newcommand{\pmf}{\DOTSB\mbox{pmf}}
+
+\usepackage[titles]{tocloft}
+\makeatletter
+\newcommand*{\tocwithouttitle}{\@starttoc{toc}}
+\makeatother
+
+\usepackage{sectsty}
+\partfont{\Large\uppercase}
+
+\usepackage{listings}
+\usepackage{fontawesome}
+% \defcaptionname{english}{\lstlistingname}{Algorithm}
+
+\usepackage{color}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=Java,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true
+  tabsize=3
+}
+
+\usepackage{setspace}
+
+\sloppy
+
+\begin{document}
+
+\noindent BLAST nucleotide database search summary\newline
+\noindent Oliver Serang\newline
+
+\section{The nucleotide search problem}
+Given our query nucleotide sequence, $A$, and a database of
+potentially many candidate sequences to match, $B_1, B_2, \ldots B_n$,
+we would like to find the high-scoring Smith-Waterman alignment
+matches $(a_1,b_1), (a_2,b_2), \ldots$. That is, we want to find
+sequences of $A$ and any $B_i$ that would produce a high score when
+aligned with Smith-Waterman. We could do this directly be aligning all
+pairs: $(A,B_1), (A,B_2), \ldots (A,B_n)$; however, this would be far
+too slow or memory intensive. 
+
+\section{BLAST fundamentals}
+\subsection{Splitting into all $k$-mers}
+To start with, we use words to find candidate ``seed'' matches. For
+some $k$ fixed in advance (\emph{e.g.}, $k=11$), BLAST finds every
+$k$-mer found in $A$ and every $k$-mer found in each $B_i$. These
+$k$-mers are 
+
+\subsection{Finding high-scoring $k$-mer word matches}
+Now, BLAST finds all possible $k$-mer words that match a candidate
+``seed'' and produce score of at least some threshold
+$score(A_{(j,j+k)},B_{i,(\ell,\ell+k)}) \geq \tau$. This score
+function is an ungapped Smith-Waterman, where we allow matches and
+mismatches, but do not allow gaps; however, for small $k$-mer words
+like these chosen, we can enumerate all $4^k$ possible $k$-mer words
+and score them in $O(k\cdot 4^k)$ steps. For $k=11$, this would take
+around 44 million steps, and can be done fairly efficiently fast by
+using a table of length $4^k$.
+
+\subsection{Finding and extending $k$-mer matches in the database $B_1, B_2, \ldots B_n$}
+At this point, we now have the high-scoring candidate $k$-mer words
+for each $k$-mer from $A$. For each $k$-mer $q$ in $A$, its
+high-scoring candidate $k$-mer words can be searched for exact matches
+in the database in every $B_i$. Locations of exact matches $m$ in some
+$B_i$ will be marked on the database sequence as a high-scoring
+(\emph{i.e.}, $\geq \tau$) ungapped alignment with $q$. These ungapped
+alignments can be extended to the left by looking at the next
+characters to the left of $q$ in $A$ and the next characters to the
+left of $m$ in $B_i$ and extended to the right by looking at the next
+characters to the right of $q$ in $A$ and the next characters to the
+right of $m$ in $B_i$. The extension will continue to either side
+until the score decreases. In this manner, we know that the scores of
+the each alignment must be $\geq \tau$, because they started $\geq
+\tau$ and never decreased.
+
+\subsection{A ``two-hit'' model}
+At this point, we have locally maximal ungapped alignments (between
+$A$ and each $B_i$) and scores. These are called ``high-scoring
+segment pairs'' (abbreviated HSPs-- not ``heat shock proteins''). HSPs
+that are within a certain distance (a constant decided in advance) of
+one another will be merged using a local, gapped alignment. These
+merged HSPs each consitute a ``hit'', and we will require two such
+nearby hits to continue. {\bf Note that this two-hit model is an
+  advancement over the original BLAST algorithm; we could assume for
+  simplicity that we are only using a ``one-hit'' model where no
+  gapped alignment is performed.}
+
+\subsection{Scoring HSP matches}
+We now want to convert the alignment scores to something more
+probabilistic. Let $s$ be an observed score of an HSP in our data set
+and let $S$ be a random variable for the HSP score on a problem such
+as this one (\emph{i.e.}, with these query and database sequence
+lengths, \emph{etc.}). We would like to compute the chances $\Pr(S\geq
+s)$.
+
+\subsection{The Gumbel ``extreme value distribution''}
+When selecting the maximum from a large number of roughly independent
+trials, the distribution of the maxima converge to a distribution
+called the ``extreme value distribution'' (EVD). This is reminscent of
+how many added independent random trials may converge to a normal
+(\emph{i.e.}, Gaussian) distribution. A Gumbel EVD is one way to
+characterize the EVD. It has free parameters $\beta>0$ and $\mu$, and
+its cumulative distribution is
+\[
+\Pr(S\geq s) = 1-e^{-e^{-\frac{s-\mu}{\beta}}}.
+\]
+
+Ungapped Smith-Waterman alignments between unrelated strings (a
+reasonable null hypothesis, since we want to eliminate the case where
+the two strings $A,B_i$ have no matches except those found by chance)
+follow EVD, because we have many roughly independent match scores as
+we slide $A$ over $B_i$; therefore, under the null hypothesis, these
+ungapped alignment scores should have the score distribution
+above. The free parameters $\mu$ and $\beta$ can be fit on the HSP
+scores that we observe. This will not require searching iteratively;
+we search once, fit the parameters, and then report the probability
+scores, and revealing those that are most significant.
+
+Note that this EVD convergence has only been proven for ungapped
+alignments; the bold font above slightly discusses how we can do the
+filtering/search process with gapped or ungapped alignments; to be
+perfectly precise, we should use ungapped alignments for this;
+however, the gapped ``two-hit'' model, seems to work quite well in
+practice.
+
+\subsection{A note on repetitive regions}
+Repetitive regions, \emph{e.g.}, ``GGGGGGGGGGGGGG\ldots'' or
+``GTAGTAGTAGTAGTAGTA\ldots'' may produce \emph{many} $k$-mer matches;
+as such, it can be useful to filter them out in advance. This may
+substantially reduce the number of matching $k$-mer regions in any
+pair $(A,B_i)$.
+
+\end{document}
+
+
